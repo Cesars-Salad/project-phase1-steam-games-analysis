@@ -53,11 +53,20 @@ class Game:
         max_lancamentos = max(contagem_anos.values())
         return [ano for ano, count in contagem_anos.items() if count == max_lancamentos]
 
-    # metodo estatico 3 para resolver a questao de
+    # metodo estatico 3 
     @staticmethod
     def top_5_jogos_com_mais_usuarios(jogos):
-        jogos_ordenados = sorted(jogos, key=lambda jogo: jogo.Peak_CCU, reverse=True)
-        return jogos_ordenados[:5]
+        jogos_ordenados = sorted(jogos, key=lambda jogo: jogo.Peak_CCU, reverse=True)[:5]
+        resultado = []
+        for jogo in jogos_ordenados:
+            percentual_avaliacoes = (jogo.Positive / (jogo.Positive + jogo.Negative) * 100) if (jogo.Positive + jogo.Negative) > 0 else 0
+            resultado.append({
+                "Nome": jogo.Name,
+                "Pico de Jogadores": jogo.Peak_CCU,
+                "Percentual de Avaliações Positivas": f"{percentual_avaliacoes:.2f}%",
+                "Tempo Médio de Jogo": f"{jogo.Average_playtime_forever} horas"
+            })
+        return resultado
 
 # Extracao e leitura do steam_games.csv
 
