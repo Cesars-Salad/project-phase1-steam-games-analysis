@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.swp
+.DS_Store
+.vscode/
+.idea/
+*.log
+data/processed/
+.env
+data/raw/steam_games.csv
