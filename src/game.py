@@ -2,12 +2,14 @@
 import os
 import csv
 import zipfile
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd # fase 2
+import numpy as np #fase 2
+import matplotlib.pyplot as plt # fase 2
+
 from collections import Counter # ver comentarios em metodo estatico 2
 from datetime import datetime # ver comentarios em metodo estatico 2 
 
+# fase 1
 # definicao da classe Game buscando o cabecalho das colunas no proprio arquivo
 class Game:
     def __init__(self, **attributes):
@@ -150,32 +152,25 @@ def top_publishers(df):
 # Pergunta 4: Crescimento de jogos para Linux
 
 def linux_growth(df):
-    # Filtrando os dados para considerar apenas os lançamentos para Linux
     df_linux = df[df["Linux"] == True].copy()
     
-    # Extraindo o ano da coluna 'Release_date'
     df_linux.loc[:, "Ano"] = df_linux["Release_date"].apply(
         lambda x: int(str(x)[-4:]) if isinstance(x, str) and len(str(x)) >= 4 else np.nan
     )
-    
-    # Removendo linhas com valor 'Ano' nulo e agrupando por ano
+
     df_years = df_linux.dropna(subset=["Ano"]).groupby("Ano").size()
     
-    # Filtrando os dados para os anos entre 2018 e 2022
     df_recent = df_years.loc[2018:2022]
-    
-    # Calculando as variações anuais
+
     variacoes = df_recent.diff().dropna()
     
-    # Calculando a tendência de crescimento ou declínio
     tendencia = variacoes.mean()
     
-    # Formatar o DataFrame de anos recentes em uma string mais legível
     crescimento = df_recent.to_string(index=True)
     
     # Definindo a descrição do crescimento ou declínio
     if tendencia > 0:
-        tendencia_texto = f"O crescimento de lançamentos para Linux entre 2018 e 2022 é positivo:\n Em média há um crescimento de {tendencia:.2f} novos jogos a cada ano além do número do ano anterior."
+        tendencia_texto = f"O crescimento de lançamentos para Linux entre 2018 e 2022 é positivo:\n Em média há um crescimento de {tendencia:.2f} novos jogos a cada ano acima do número do ano anterior."
     else:
         tendencia_texto = f"O crescimento de lançamentos para Linux entre 2018 e 2022 é negativo:\n Em média há um decréscimo de {tendencia:.2f} novos jogos a cada ano abaixo do número do ano anterior."
     
@@ -185,41 +180,68 @@ def linux_growth(df):
 
 # Pergunta 5: Categoria com maior base de jogadores
 
-def top_category(df):
-    df["Owners"] = df["Estimated_owners"].str.split("-").str[1].astype(float)
-    df_exp = df.explode("Categories").groupby("Categories")["Owners"].sum().nlargest(10)
-    return f"Total de categorias analisadas: {df_exp.shape[0]}\n{df_exp.to_string()}"
+def calculate_avg_owners(owner_range):
+    # Extrair os números do formato '(min - max)'
+    min_owners, max_owners = map(int, owner_range.split(' - '))
+    return (min_owners + max_owners) / 2 # estimativa do numero de owners sera a media entre max e min, mas um RNG entre os ranges também poderia ser valido
+
+# def em comum 2
+
+def human_readable(num):
+    if num >= 1_000_000:
+        return f"{num / 1_000_000:.1f}M"  # Para milhões
+    elif num >= 1_000:
+        return f"{num / 1_000:.1f}k"  # Para milhares
+    else:
+        return f"{num:.0f}"  # Para números abaixo de 1.000
+    
+# parte 1 da pergunta
+
+def pergunta_parte_1(df):
+    df['Average_owners'] = df['Estimated_owners'].apply(calculate_avg_owners)
+    df_expanded_1 = df.explode('Genres')
+    genre_owners_1 = df_expanded_1.groupby('Genres')['Average_owners'].sum().reset_index()
+    genre_owners_sorted_1 = genre_owners_1.sort_values(by='Average_owners', ascending=False).reset_index(drop=True)
+    genre_owners_sorted_1['Average_owners'] = genre_owners_sorted_1['Average_owners'].apply(human_readable)
+    print(genre_owners_sorted_1.head(20).to_string(index=False))
+    
+# parte 2 da pergunta
+
+def pergunta_parte_2(df):
+    df['Average_owners'] = df['Estimated_owners'].apply(calculate_avg_owners)
+    df_expanded_2 = df.assign(Genres=df['Genres'].str.split(',')).explode('Genres')
+    df_expanded_2['Genres'] = df_expanded_2['Genres'].str.strip()  # Remover espaços extras
+    genre_owners_2 = df_expanded_2.groupby('Genres')['Average_owners'].sum().reset_index()
+    genre_owners_sorted_2 = genre_owners_2.sort_values(by='Average_owners', ascending=False).reset_index(drop=True)
+    genre_owners_sorted_2['Average_owners'] = genre_owners_sorted_2['Average_owners'].apply(human_readable)
+    print(genre_owners_sorted_2.head(20).to_string(index=False))
+
 
 # Gráfico 1: Percentual de suporte por sistema operacional
 
 def os_support_chart(df):
     os_counts = df[["Windows", "Mac", "Linux"]].sum()
-    os_counts.plot.pie(autopct="%.1f%%", labels=["Windows", "Mac", "Linux"], colors=["blue", "gray", "green"], title="Suporte por Sistema Operacional")
+    colors = plt.cm.Paired([0, 2, 4])
+    os_counts.plot.pie(autopct="%.1f%%", labels=["Windows", "Mac", "Linux"], colors=colors, title="Suporte por Sistema Operacional")
     plt.show()
 
 # Gráfico 2: Tendência de lançamentos de jogos Indie e Estratégia
 def indie_strategy_trend(df):
     
-    # Filtra os dados para o ano de 2010 a 2020
     df_filtered = df[(df["Categories"].str.contains("Single-player", na=False)) & df["Genres"].str.contains("Indie|Strategy", na=False)].copy()
     
-    # Cria a coluna "Ano"
     df_filtered.loc[:, "Ano"] = df_filtered["Release_date"].apply(lambda x: int(str(x)[-4:]) if isinstance(x, str) and len(str(x)) >= 4 else np.nan)
     
-    # Filtra os dados apenas para os anos de 2010 a 2020
     df_filtered = df_filtered[df_filtered["Ano"].between(2010, 2020, inclusive='both')]
     
-    # Conta a quantidade de "Indie" e "Strategy" para cada ano
     indie_count = df_filtered[df_filtered["Genres"].str.contains("Indie", na=False)].groupby("Ano").size()
     strategy_count = df_filtered[df_filtered["Genres"].str.contains("Strategy", na=False)].groupby("Ano").size()
 
-    # Junta os dois contadores em um df
     df_counts = pd.DataFrame({
         "Indie": indie_count,
         "Strategy": strategy_count
-    }).fillna(0)  # Substitui valores ausentes por 0
+    }).fillna(0)  
     
-    # Criação do gráfico de barras
     ax = df_counts.plot(kind='bar', figsize=(10, 6), width=0.8)
     plt.title('Contagem de gêneros "Indie" e "Strategy" de 2010 a 2020')
     plt.xlabel('Ano')
@@ -231,30 +253,23 @@ def indie_strategy_trend(df):
                     fontsize=10, color='black', 
                     xytext=(0, 8), textcoords='offset points')
 
-    # Exibir a legenda para identificar os gêneros
     plt.legend(title="Gêneros", loc='upper left')
     plt.ylim(bottom=0)
     plt.tight_layout()
     plt.show()
 
+
 # Gráfico 3: Tendência de categorias ao longo dos anos
 
 def category_trend(df):  
     df_filtered_trend = df[df["Categories"].str.contains("Single-player|Multi-player", na=False)].copy()
-
-    # Extraindo o ano da coluna 'Release_date'
     df_filtered_trend.loc[:, "Ano"] = df_filtered_trend["Release_date"].apply(lambda x: int(str(x)[-4:]) if isinstance(x, str) and len(str(x)) >= 4 else np.nan)
-
-    # Filtrando os dados para os anos entre 2010 e 2022
     df_filtered_trend = df_filtered_trend[df_filtered_trend["Ano"].between(2010, 2022)]
-
-    # Contagem de jogos 'Single-player', excluindo os 'Multi-player'
     single_count = df_filtered_trend[
         df_filtered_trend["Categories"].str.contains("Single-player", na=False) &
         ~df_filtered_trend["Categories"].str.contains("Multi-player", na=False)
     ].groupby("Ano").size()
 
-    # Contagem de jogos 'Multi-player'
     multi_count = df_filtered_trend[
         df_filtered_trend["Categories"].str.contains("Multi-player", na=False)
     ].groupby("Ano").size()
@@ -264,8 +279,7 @@ def category_trend(df):
             "Multi-player": multi_count
         }).fillna(0)
 
-    # Criação do gráfico de barras
-    ax = df_counts_trend.plot(kind='bar', figsize=(10, 6), width=0.8)
+    ax = df_counts_trend.plot(kind='bar', figsize=(10, 6), width=0.8, color=['#FF5733', '#33FF57'])
     plt.title('Tendência de jogos para um jogador ou multijogador entre 2010 e 2022')
     plt.xlabel('Ano')
     plt.ylabel('Quantidade de Jogos Lançados')
@@ -276,8 +290,20 @@ def category_trend(df):
                         fontsize=10, color='black', 
                         xytext=(0, 8), textcoords='offset points')
 
-        # Exibir a legenda para identificar os gêneros
     plt.legend(title="Categorias", loc='upper left')
     plt.ylim(bottom=0)
     plt.tight_layout()
     plt.show()
+
+
+# grafico 4: densidade de jogos relacionando preço e avaliacao de usuarios 
+# FIXME: esse seria um gráfico para fazer uma densidade de jogos relacionando preco e avaliacoes, mas requer otimizacao para funcionar adequadamente
+"""""
+def density_price_vs_positive(df):
+    df_density_price = df[['Price', 'Positive', 'Negative']].copy()
+    df_density_price.loc[:, 'Positive_Percentage'] = df_density_price['Positive'] / (df_density_price['Positive'] + df_density_price['Negative']) * 100
+    
+    with sns.axes_style('whitegrid'):
+
+        grafico = sns.pairplot(data=df_density_price, palette="pastel")
+"""""
